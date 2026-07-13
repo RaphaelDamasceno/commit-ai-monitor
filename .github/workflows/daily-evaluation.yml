@@ -1,0 +1,35 @@
+name: Daily Commit Evaluation
+
+on:
+  schedule:
+    # Roda todos os dias às 23:00 UTC (Ajuste caso seu fuso seja diferente. 23h Brasília = 02h UTC do dia seguinte)
+    - cron: '0 2 * * *' 
+  workflow_dispatch: # Permite rodar manualmente clicando em um botão no GitHub
+
+jobs:
+  evaluate-commits:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Evaluation Script
+        run: npx tsx src/index.ts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }} # Use um PAT (Personal Access Token), não o secrets.GITHUB_TOKEN padrão se precisar acessar outros repositórios
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }} # Opcional
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
