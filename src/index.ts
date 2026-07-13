@@ -36,7 +36,7 @@ async function main() {
   const evaluations: UserEvaluation[] = [];
 
   for (const [author, authorCommits] of Object.entries(commitsByAuthor)) {
-    console.log(\`Avaliando \${authorCommits.length} commits do usuário \${author}...\`);
+    console.log(`Avaliando ${authorCommits.length} commits do usuário ${author}...`);
     const evaluation = await aiService.evaluateUserCommits(author, authorCommits);
     evaluations.push(evaluation);
   }
