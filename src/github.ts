@@ -16,72 +16,114 @@ export class GitHubService {
   }
 
   async getRecentCommits(orgName?: string): Promise<CommitData[]> {
-    const commitsData: CommitData[] = [];
+    const commitsMap = new Map<string, CommitData>();
+    
     // Calculate the date 24 hours ago
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - 1);
     const since = sinceDate.toISOString();
 
-    let repos: { name: string; owner: { login: string } }[] = [];
+    console.log(`Buscando eventos desde ${since}...`);
 
-    if (orgName) {
-      const response = await this.octokit.repos.listForOrg({
-        org: orgName,
-        sort: 'pushed',
-        per_page: 50,
-      });
-      repos = response.data;
-    } else {
-      const response = await this.octokit.repos.listForAuthenticatedUser({
-        sort: 'pushed',
-        per_page: 50,
-      });
-      repos = response.data;
-    }
-
-    for (const repo of repos) {
-      try {
-        const commits = await this.octokit.repos.listCommits({
-          owner: repo.owner.login,
-          repo: repo.name,
-          since,
+    try {
+      const authUser = await this.octokit.users.getAuthenticated();
+      const username = authUser.data.login;
+      
+      let events: any[] = [];
+      
+      // Busca a timeline de eventos (PushEvents) do usuário na organização ou global
+      if (orgName) {
+        const response = await this.octokit.activity.listOrgEventsForAuthenticatedUser({
+          username,
+          org: orgName,
+          per_page: 100,
         });
+        events = response.data;
+      } else {
+        const response = await this.octokit.activity.listEventsForAuthenticatedUser({
+          username,
+          per_page: 100,
+        });
+        events = response.data;
+      }
 
-        for (const commit of commits.data) {
-          // Get the full diff for the commit
-          try {
-            const commitDetail = await this.octokit.repos.getCommit({
-              owner: repo.owner.login,
-              repo: repo.name,
-              ref: commit.sha,
-            });
+      // Filtra apenas eventos de Push ocorridos nas últimas 24h
+      const pushEvents = events.filter(e => 
+        e.type === 'PushEvent' && 
+        e.created_at && 
+        new Date(e.created_at) >= sinceDate
+      );
 
-            // The files array contains the patch (diff) for each modified file
-            let diff = '';
-            if (commitDetail.data.files) {
-              for (const file of commitDetail.data.files) {
-                if (file.patch) {
-                  diff += `--- a/${file.filename}\n+++ b/${file.filename}\n${file.patch}\n\n`;
+      // Agrupa os repositórios e branches que receberam push
+      const branchesToCheck = new Set<string>();
+      
+      for (const event of pushEvents) {
+        const repoFullName = event.repo.name; // Ex: "Hub-On-Tecnologia/dashboard-comercial-focus"
+        const payload = event.payload as any;
+        
+        if (payload && payload.ref) {
+          // Extrai o nome da branch (ex: "refs/heads/dev" -> "dev")
+          const branch = payload.ref.replace('refs/heads/', '');
+          branchesToCheck.add(`${repoFullName}:${branch}`);
+        }
+      }
+
+      console.log(`Foram encontrados pushes em ${branchesToCheck.size} branch(es) diferentes.`);
+
+      // Para cada branch que recebeu push, buscamos os commits
+      for (const repoBranch of branchesToCheck) {
+        const [repoFullName, branch] = repoBranch.split(':');
+        const [owner, repo] = repoFullName.split('/');
+
+        try {
+          const commitsResponse = await this.octokit.repos.listCommits({
+            owner,
+            repo,
+            sha: branch,
+            since,
+          });
+
+          for (const commit of commitsResponse.data) {
+            // Evita duplicatas caso a mesma branch tenha tido múltiplos PushEvents agrupados
+            if (commitsMap.has(commit.sha)) continue;
+
+            // Busca os arquivos modificados para montar o diff
+            try {
+              const commitDetail = await this.octokit.repos.getCommit({
+                owner,
+                repo,
+                ref: commit.sha,
+              });
+
+              let diff = '';
+              if (commitDetail.data.files) {
+                for (const file of commitDetail.data.files) {
+                  if (file.patch) {
+                    diff += `--- a/${file.filename}\n+++ b/${file.filename}\n${file.patch}\n\n`;
+                  }
                 }
               }
-            }
 
-            commitsData.push({
-              repository: repo.name,
-              author: commit.commit.author?.name || commit.author?.login || 'Unknown',
-              message: commit.commit.message,
-              url: commit.html_url,
-              diff: diff || 'No diff available or binary files changed',
-            });
-          } catch (diffError) {
-            console.error(`Error fetching diff for commit ${commit.sha}:`, diffError);
+              commitsMap.set(commit.sha, {
+                repository: repo,
+                author: commit.commit.author?.name || commit.author?.login || 'Unknown',
+                message: commit.commit.message,
+                url: commit.html_url,
+                diff: diff || 'No diff available or binary files changed',
+              });
+
+            } catch (diffError) {
+              console.error(`Error fetching diff for commit ${commit.sha}:`, diffError);
+            }
           }
+        } catch (branchError) {
+          console.error(`Error fetching commits for branch ${branch} in ${repoFullName}:`, branchError);
         }
-      } catch (repoError) {
-        console.error(`Error fetching commits for repo ${repo.name}:`, repoError);
       }
+    } catch (error) {
+      console.error('Error in getRecentCommits:', error);
     }
 
-    return commitsData;
+    return Array.from(commitsMap.values());
   }
 }
