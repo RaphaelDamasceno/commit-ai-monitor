@@ -11,7 +11,7 @@ export interface UserEvaluation {
 
 export class AIService {
   private ai: GoogleGenAI;
-  private model = 'gemini-2.5-pro'; // Recommended model for complex coding analysis
+  private model = 'gemini-flash-latest'; // Recommended model for complex coding analysis
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey });
