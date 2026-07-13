@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import { GitHubService, CommitData } from './github';
 import { AIService, UserEvaluation } from './ai';
 import { EmailService } from './email';
