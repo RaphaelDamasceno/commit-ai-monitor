@@ -16,7 +16,7 @@ async function main() {
   const emailService = new EmailService();
   
   const orgName = process.env.GITHUB_ORG_NAME || 'Hub-On-Tecnologia'; // Define a organização alvo
-  const targetEmail = 'raphaelferdam@gmail.com'; // Hardcoded as requested
+  const targetEmail = 'raphaelferreira@hubnogueira.com.br, raphaelferdam@gmail.com';
 
   console.log('Buscando commits das últimas 24h...');
   const commits = await githubService.getRecentCommits(orgName);
