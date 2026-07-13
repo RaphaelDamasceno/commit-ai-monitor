@@ -15,7 +15,7 @@ async function main() {
   const aiService = new AIService(process.env.GEMINI_API_KEY);
   const emailService = new EmailService();
   
-  const orgName = process.env.GITHUB_ORG_NAME; // Opcional
+  const orgName = process.env.GITHUB_ORG_NAME || 'Hub-On-Tecnologia'; // Define a organização alvo
   const targetEmail = 'raphaelferdam@gmail.com'; // Hardcoded as requested
 
   console.log('Buscando commits das últimas 24h...');
