@@ -18,12 +18,17 @@ export class GitHubService {
   async getRecentCommits(orgName?: string): Promise<CommitData[]> {
     const commitsMap = new Map<string, CommitData>();
     
-    // Calculate the date 24 hours ago
-    const sinceDate = new Date();
-    sinceDate.setDate(sinceDate.getDate() - 1);
-    const since = sinceDate.toISOString();
+    // Calcula o dia anterior (00:00:00 até 23:59:59)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const since = yesterday.toISOString();
 
-    console.log(`Buscando eventos desde ${since}...`);
+    const yesterdayEnd = new Date(yesterday);
+    yesterdayEnd.setHours(23, 59, 59, 999);
+    const until = yesterdayEnd.toISOString();
+
+    console.log(`Buscando eventos de ${since} até ${until}...`);
 
     try {
       const authUser = await this.octokit.users.getAuthenticated();
@@ -47,12 +52,12 @@ export class GitHubService {
         events = response.data;
       }
 
-      // Filtra apenas eventos de Push ocorridos nas últimas 24h
-      const pushEvents = events.filter(e => 
-        e.type === 'PushEvent' && 
-        e.created_at && 
-        new Date(e.created_at) >= sinceDate
-      );
+      // Filtra apenas eventos de Push ocorridos no dia anterior
+      const pushEvents = events.filter(e => {
+        if (e.type !== 'PushEvent' || !e.created_at) return false;
+        const eventDate = new Date(e.created_at);
+        return eventDate >= yesterday && eventDate <= yesterdayEnd;
+      });
 
       // Agrupa os repositórios e branches que receberam push
       const branchesToCheck = new Set<string>();
@@ -81,6 +86,7 @@ export class GitHubService {
             repo,
             sha: branch,
             since,
+            until,
           });
 
           for (const commit of commitsResponse.data) {
