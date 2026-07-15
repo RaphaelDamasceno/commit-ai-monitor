@@ -55,8 +55,13 @@ async function main() {
   // 2. TRELLO FLOW
   if (process.env.TRELLO_BOARDS) {
     try {
-      const trelloConfigs = JSON.parse(process.env.TRELLO_BOARDS);
-
+      let trelloConfigs = [];
+      try {
+        trelloConfigs = JSON.parse(process.env.TRELLO_BOARDS);
+      } catch (parseError) {
+        console.error('Aviso: Formato inválido em TRELLO_BOARDS no .env. Ignorando Trello.');
+        trelloConfigs = [];
+      }
       for (const config of trelloConfigs) {
         if (!config.key || !config.token || !config.boardId || !config.name) continue;
         
