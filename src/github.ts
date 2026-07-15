@@ -31,33 +31,43 @@ export class GitHubService {
     console.log(`Buscando eventos de ${since} até ${until}...`);
 
     try {
-      const authUser = await this.octokit.users.getAuthenticated();
-      const username = authUser.data.login;
+      let repos: any[] = [];
       
-      let events: any[] = [];
-      
-      // Busca a timeline de eventos (PushEvents) do usuário na organização ou global
+      console.log(`Buscando repositórios...`);
       if (orgName) {
-        const response = await this.octokit.activity.listOrgEventsForAuthenticatedUser({
-          username,
+        repos = await this.octokit.paginate(this.octokit.repos.listForOrg, {
           org: orgName,
-          per_page: 100,
+          type: 'all',
         });
-        events = response.data;
       } else {
-        const response = await this.octokit.activity.listEventsForAuthenticatedUser({
-          username,
-          per_page: 100,
+        repos = await this.octokit.paginate(this.octokit.repos.listForAuthenticatedUser, {
+          affiliation: 'owner,collaborator,organization_member',
         });
-        events = response.data;
       }
 
-      // Filtra apenas eventos de Push ocorridos no dia anterior
-      const pushEvents = events.filter(e => {
-        if (e.type !== 'PushEvent' || !e.created_at) return false;
-        const eventDate = new Date(e.created_at);
-        return eventDate >= yesterday && eventDate <= yesterdayEnd;
-      });
+      console.log(`Foram encontrados ${repos.length} repositórios. Buscando eventos...`);
+      
+      let pushEvents: any[] = [];
+      
+      for (const repo of repos) {
+        try {
+          const events = await this.octokit.paginate(this.octokit.activity.listRepoEvents, {
+            owner: repo.owner.login,
+            repo: repo.name,
+            per_page: 100,
+          });
+
+          const repoPushEvents = events.filter((e: any) => {
+            if (e.type !== 'PushEvent' || !e.created_at) return false;
+            const eventDate = new Date(e.created_at);
+            return eventDate >= yesterday && eventDate <= yesterdayEnd;
+          });
+
+          pushEvents.push(...repoPushEvents);
+        } catch (error) {
+          console.error(`Erro ao buscar eventos do repositório ${repo.full_name}:`, error);
+        }
+      }
 
       // Agrupa os repositórios e branches que receberam push
       const branchesToCheck = new Set<string>();
