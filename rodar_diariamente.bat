@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Users\pedro\Documents\antigravity\peaceful-franklin"
+cd /d "%~dp0"
 call npm run start > logs.txt 2>&1
 exit
