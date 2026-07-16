@@ -175,4 +175,88 @@ Formate sua resposta estritamente usando o seguinte modelo, sem texto extra:
       };
     }
   }
+
+  async generateWeeklyChangelog(boardName: string, cards: any[]): Promise<string> {
+    const cardsContext = cards.map(c => `
+Card: ${c.name}
+URL: ${c.url}
+Descrição: ${c.desc ? c.desc.substring(0, 200) + '...' : 'Sem descrição'}
+---
+`).join('\n');
+
+    const prompt = `
+Você é um Product Manager comunicando os lançamentos da semana para a empresa e clientes.
+Abaixo está a lista de entregas (cartões) que foram concluídas na última semana no quadro "${boardName}".
+
+${cardsContext}
+
+Escreva um Changelog Semanal focado no valor gerado para o negócio. Evite jargão técnico excessivo (ex: não fale de refatoração de classes, fale de melhorias internas).
+Categorize as entregas de forma amigável e bonita, usando emojis. As categorias sugeridas são (use apenas as que tiverem itens):
+- ✨ **Novas Funcionalidades**
+- 🐛 **Correções de Bugs**
+- ⚡ **Melhorias e Otimizações**
+- 🛠️ **Manutenção**
+
+Traga um tom de comemoração pela semana concluída. Escreva em formato HTML (usando tags como <h3>, <ul>, <li>, <strong>, <p>, e <a> para links dos cartões) para que possa ser inserido diretamente no corpo de um e-mail com boa formatação visual. Não inclua a tag <html> ou <body>, nem coloque formatação markdown como \`\`\`html, retorne APENAS o HTML puro dos elementos.
+`;
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.model,
+        contents: prompt,
+      });
+
+      let text = response.text || '';
+      // Limpar blocos de código se a IA retornar com ```html
+      text = text.replace(/^\`\`\`html\s*/i, '').replace(/\s*\`\`\`$/i, '');
+      return text;
+    } catch (error) {
+      console.error('Error generating changelog:', error);
+      return '<p>Erro ao gerar o changelog na IA.</p>';
+    }
+  }
+
+  async evaluateSupportTickets(tickets: any[]): Promise<string> {
+    const ticketsContext = tickets.map(t => `
+ID: ${t.id}
+Título: ${t.title}
+Descrição: ${t.description}
+Fase Atual: ${t.stage}
+Responsável: ${t.assignedTo}
+Data de Criação: ${t.createdAt}
+---
+`).join('\n');
+
+    const prompt = `
+Você é um Coordenador de Suporte / Tech Lead analisando a fila de chamados (tickets) do Bitrix24.
+Abaixo estão os chamados de suporte abertos no momento.
+
+${ticketsContext}
+
+Crie um relatório gerencial em HTML (sem tags <html> ou <body>, apenas o conteúdo interno para um e-mail) focado nos seguintes pontos:
+
+1. **Resumo da Operação**: Total de chamados abertos e um overview rápido de como está a fila.
+2. **Atenção e Gargalos**: Destaque chamados bloqueados, e especialmente os que estão "guardando poeira" (abertos há muito tempo sem resolução).
+3. **Fila por Responsável**: Liste rapidamente quantos chamados cada pessoa tem.
+4. **Problemas Recorrentes e Causa Raiz**: Analise o contexto geral dos chamados. Se notar problemas semelhantes, sugira uma ação definitiva no fornecedor ou nos processos operacionais, ao invés de apenas remediar cada chamado isoladamente.
+5. **Top 5 Chamados Críticos**: Uma lista ou tabela dos chamados que precisam de atenção imediata.
+
+Formatação: Use <h3>, <ul>, <li>, <strong> e <p>. Use emojis para deixar o relatório com cara de dashboard moderno e agradável de ler.
+Não inclua \`\`\`html no retorno, apenas as tags reais.
+`;
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.model,
+        contents: prompt,
+      });
+
+      let text = response.text || '';
+      text = text.replace(/^\`\`\`html\s*/i, '').replace(/\s*\`\`\`$/i, '');
+      return text;
+    } catch (error) {
+      console.error('Error generating support evaluation:', error);
+      return '<p>Erro ao gerar a análise de suporte na IA.</p>';
+    }
+  }
 }

@@ -1,3 +1,5 @@
+import { subDays, isAfter } from 'date-fns';
+
 export interface TrelloActionData {
   author: string;
   type: string;
@@ -103,6 +105,110 @@ export class TrelloService {
 
     } catch (error) {
       console.error('Error in getRecentActivities (Trello):', error);
+      return [];
+    }
+  }
+
+  async getBoardLists(): Promise<{ id: string, name: string }[]> {
+    try {
+      const url = new URL(`https://api.trello.com/1/boards/${this.boardId}/lists`);
+      url.searchParams.append('key', this.apiKey);
+      url.searchParams.append('token', this.apiToken);
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
+      
+      const lists = await response.json();
+      return lists.map((l: any) => ({ id: l.id, name: l.name }));
+    } catch (error) {
+      console.error('Error in getBoardLists:', error);
+      return [];
+    }
+  }
+
+  async getStaleCards(listNames: string[], daysStale: number): Promise<any[]> {
+    try {
+      const lists = await this.getBoardLists();
+      const targetLists = lists.filter(l => listNames.some(name => l.name.toLowerCase().includes(name.toLowerCase())));
+      const targetListIds = targetLists.map(l => l.id);
+
+      if (targetListIds.length === 0) return [];
+
+      const url = new URL(`https://api.trello.com/1/boards/${this.boardId}/cards`);
+      url.searchParams.append('key', this.apiKey);
+      url.searchParams.append('token', this.apiToken);
+      url.searchParams.append('fields', 'id,name,dateLastActivity,shortUrl,idList,desc');
+      url.searchParams.append('members', 'true');
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
+      
+      const cards = await response.json();
+      
+      const cutoffDate = subDays(new Date(), daysStale);
+      
+      const staleCards = cards.filter((card: any) => {
+        if (!targetListIds.includes(card.idList)) return false;
+        const lastActivity = new Date(card.dateLastActivity);
+        return lastActivity < cutoffDate;
+      }).map((card: any) => {
+        const listName = lists.find(l => l.id === card.idList)?.name || 'Unknown';
+        const members = card.members ? card.members.map((m: any) => m.fullName).join(', ') : 'Nenhum membro';
+        const daysSinceActivity = Math.floor((new Date().getTime() - new Date(card.dateLastActivity).getTime()) / (1000 * 3600 * 24));
+        return {
+          id: card.id,
+          name: card.name,
+          url: card.shortUrl,
+          listName,
+          members,
+          daysSinceActivity,
+          dateLastActivity: card.dateLastActivity
+        };
+      });
+
+      return staleCards;
+    } catch (error) {
+      console.error('Error in getStaleCards:', error);
+      return [];
+    }
+  }
+
+  async getWeeklyDoneCards(doneListName: string): Promise<any[]> {
+    try {
+      const lists = await this.getBoardLists();
+      const doneList = lists.find(l => l.name.toLowerCase().includes(doneListName.toLowerCase()));
+      
+      if (!doneList) {
+        console.warn(`Lista "${doneListName}" não encontrada no quadro ${this.boardName}`);
+        return [];
+      }
+
+      const url = new URL(`https://api.trello.com/1/lists/${doneList.id}/cards`);
+      url.searchParams.append('key', this.apiKey);
+      url.searchParams.append('token', this.apiToken);
+      url.searchParams.append('fields', 'id,name,dateLastActivity,shortUrl,desc');
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
+      
+      const cards = await response.json();
+      
+      // Filtra cartões que tiveram atividade nos últimos 7 dias
+      const cutoffDate = subDays(new Date(), 7);
+      
+      const weeklyCards = cards.filter((card: any) => {
+        const lastActivity = new Date(card.dateLastActivity);
+        return isAfter(lastActivity, cutoffDate);
+      }).map((card: any) => ({
+        id: card.id,
+        name: card.name,
+        url: card.shortUrl,
+        desc: card.desc
+      }));
+
+      return weeklyCards;
+    } catch (error) {
+      console.error('Error in getWeeklyDoneCards:', error);
       return [];
     }
   }

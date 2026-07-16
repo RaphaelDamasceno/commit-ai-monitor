@@ -10,6 +10,8 @@ Um sistema automatizado que monitora diariamente os repositórios da sua organiz
   - 🛠️ **Implementações**: Resumo amigável sobre o que foi construído ou corrigido.
   - ⚡ **Produtividade**: Avaliação qualitativa baseada na complexidade e impacto da entrega.
 - **Relatório por E-mail**: Consolida tudo em um e-mail com design elegante, agrupado por usuário, e envia para o gestor.
+- **Changelog Semanal**: Gera automaticamente um relatório de versão amigável focado em negócios, baseado nas entregas no Trello, ideal para enviar para a empresa ou clientes.
+- **Alerta de Gargalos**: Verifica o Trello diariamente para encontrar cartões que estão parados há muito tempo em colunas como "Em Andamento" e alerta o gestor para remover bloqueios.
 - **Execução Serverless**: Roda de forma gratuita através do GitHub Actions todos os dias, sem necessidade de alugar servidores.
 
 ---
@@ -71,10 +73,18 @@ Se você quiser testar ou modificar o código na sua máquina:
 
 3. Crie um arquivo \`.env\` na raiz baseado no \`.env.example\` e preencha com suas chaves.
 
-4. Execute o script:
-   \`\`\`bash
+4. Execute os scripts disponíveis:
+   ```bash
+   # Relatório diário de produtividade
    npx tsx src/index.ts
-   \`\`\`
+   
+   # Changelog Semanal (Ideal rodar toda segunda-feira)
+   npx tsx src/changelog.ts
+   
+   # Alerta de Gargalos (Ideal rodar diariamente à tarde)
+   npx tsx src/bottlenecks.ts
+   ```
+   *Dica: Você também pode usar os arquivos `.bat` (`rodar_diariamente.bat`, `rodar_changelog.bat`, `rodar_gargalos.bat`) se estiver no Windows.*
 
 ---
 

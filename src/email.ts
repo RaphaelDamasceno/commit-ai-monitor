@@ -112,6 +112,86 @@ export class EmailService {
     await this.sendHtmlEmail(to.join(','), `[IA] ${title} - ${dateStr}`, html);
   }
 
+  async sendChangelogReport(changelogHtml: string, title: string, to: string[]) {
+    if (!changelogHtml || to.length === 0) return;
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #333;">
+        <h2 style="color: #27ae60; border-bottom: 2px solid #2ecc71; padding-bottom: 10px; text-align: center;">
+          🎉 ${title} 🎉
+        </h2>
+        <div style="margin-top: 20px; line-height: 1.6;">
+          ${changelogHtml}
+        </div>
+        ${this.generateFooterHtml()}
+    `;
+
+    await this.sendHtmlEmail(to.join(','), title, html);
+  }
+
+  async sendBottleneckAlert(staleCards: any[], boardName: string, title: string, to: string[]) {
+    if (staleCards.length === 0 || to.length === 0) return;
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #333;">
+        <h2 style="color: #c0392b; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">
+          ⚠️ ${title}
+        </h2>
+        <p>Os seguintes cartões no quadro <strong>${boardName}</strong> não têm atividade há vários dias e podem ser um gargalo:</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Cartão</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Lista Atual</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Membros</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Dias Parado</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    for (const card of staleCards) {
+      html += `
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;">
+            <a href="${card.url}" style="color: #3498db; text-decoration: none;">${card.name}</a>
+          </td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${card.listName}</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${card.members}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #c0392b; font-weight: bold;">
+            ${card.daysSinceActivity} dias
+          </td>
+        </tr>
+      `;
+    }
+
+    html += `
+          </tbody>
+        </table>
+        ${this.generateFooterHtml()}
+    `;
+
+    await this.sendHtmlEmail(to.join(','), title, html);
+  }
+
+  async sendSupportReport(supportHtml: string, title: string, to: string[]) {
+    if (!supportHtml || to.length === 0) return;
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #333;">
+        <h2 style="color: #8e44ad; border-bottom: 2px solid #9b59b6; padding-bottom: 10px; text-align: center;">
+          🎧 ${title} 🎧
+        </h2>
+        <div style="margin-top: 20px; line-height: 1.6;">
+          ${supportHtml}
+        </div>
+        ${this.generateFooterHtml()}
+    `;
+
+    await this.sendHtmlEmail(to.join(','), title, html);
+  }
+
   private generateDecisionsHtml(decisions: { source: string, author: string, decision: string }[]): string {
     if (decisions.length === 0) return '';
     
