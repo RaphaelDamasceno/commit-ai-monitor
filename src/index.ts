@@ -9,11 +9,11 @@ async function main() {
   console.log('Iniciando avaliação diária de commits...');
 
   // Validação de variáveis de ambiente
-  if (!process.env.GITHUB_TOKEN) console.warn('Aviso: GITHUB_TOKEN não definido. Ignorando GitHub.');
+  if (!process.env.GITHUB_TOKEN_APP) console.warn('Aviso: GITHUB_TOKEN_APP não definido. Ignorando GitHub.');
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não definido.');
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) throw new Error('Credenciais SMTP não definidas.');
   
-  const githubService = new GitHubService(process.env.GITHUB_TOKEN || '');
+  const githubService = new GitHubService(process.env.GITHUB_TOKEN_APP || '');
   const aiService = new AIService(process.env.GEMINI_API_KEY);
   const emailService = new EmailService();
   
@@ -22,7 +22,7 @@ async function main() {
     : [];
 
   // 1. GITHUB FLOW
-  if (process.env.GITHUB_TOKEN) {
+  if (process.env.GITHUB_TOKEN_APP) {
     try {
       console.log('Buscando commits das últimas 24h...');
       const commits = await githubService.getRecentCommits();
