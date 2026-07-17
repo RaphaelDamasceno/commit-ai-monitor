@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ override: true });
+dotenv.config();
 import { TrelloService } from './trello';
 import { AIService } from './ai';
 import { EmailService } from './email';

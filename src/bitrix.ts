@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ override: true });
+dotenv.config();
 
 export interface SupportTicket {
   id: string;
@@ -42,7 +42,7 @@ export class BitrixService {
       })
     });
 
-    const data = await response.json();
+    const data = await response.json() as any;
     if (!data.result) {
       console.log('Nenhum chamado retornado ou erro na API.');
       return [];
@@ -53,7 +53,7 @@ export class BitrixService {
     // Fetch users to map IDs to Names
     console.log('Buscando mapeamento de usuários...');
     const usersResponse = await fetch(`${this.webhookUrl}/user.get.json`);
-    const usersData = await usersResponse.json();
+    const usersData = await usersResponse.json() as any;
     const usersMap: Record<string, string> = {};
     if (usersData.result) {
       usersData.result.forEach((u: any) => {
@@ -71,7 +71,7 @@ export class BitrixService {
     // Fetch stages to map STAGE_ID to Names
     console.log('Buscando mapeamento de fases (stages)...');
     const stagesResponse = await fetch(`${this.webhookUrl}/crm.dealcategory.stage.list.json?id=54`);
-    const stagesData = await stagesResponse.json();
+    const stagesData = await stagesResponse.json() as any;
     const stagesMap: Record<string, string> = {};
     if (stagesData.result) {
       stagesData.result.forEach((s: any) => {

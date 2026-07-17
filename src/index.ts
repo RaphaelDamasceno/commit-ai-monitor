@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ override: true });
+dotenv.config();
 import { GitHubService, CommitData } from './github';
 import { TrelloService, TrelloActionData } from './trello';
 import { AIService, UserEvaluation, TrelloEvaluation } from './ai';
@@ -29,17 +29,17 @@ async function main() {
 
       if (commits.length > 0) {
         const commitsByAuthor = commits.reduce((acc, commit) => {
-          if (!acc[commit.author]) acc[commit.author] = [];
-          acc[commit.author].push(commit);
+          acc[commit.author] ??= [];
+          acc[commit.author]!.push(commit);
           return acc;
         }, {} as Record<string, CommitData[]>);
 
-        const githubEvaluations: UserEvaluation[] = [];
-        for (const [author, authorCommits] of Object.entries(commitsByAuthor)) {
-          console.log(`Avaliando ${authorCommits.length} commits do usuário ${author}...`);
-          const evaluation = await aiService.evaluateUserCommits(author, authorCommits);
-          githubEvaluations.push(evaluation);
-        }
+        const githubEvaluations: UserEvaluation[] = await Promise.all(
+          Object.entries(commitsByAuthor).map(([author, authorCommits]) => {
+            console.log(`Avaliando ${authorCommits.length} commits do usuário ${author}...`);
+            return aiService.evaluateUserCommits(author, authorCommits);
+          })
+        );
 
         console.log('Enviando relatório do GitHub por e-mail...');
         const githubRecipients = [...defaultRecipients];
@@ -71,17 +71,17 @@ async function main() {
 
         if (activities.length > 0) {
           const activitiesByAuthor = activities.reduce((acc, action) => {
-            if (!acc[action.author]) acc[action.author] = [];
-            acc[action.author].push(action);
+            acc[action.author] ??= [];
+            acc[action.author]!.push(action);
             return acc;
           }, {} as Record<string, TrelloActionData[]>);
 
-          const trelloEvaluations: TrelloEvaluation[] = [];
-          for (const [author, authorActions] of Object.entries(activitiesByAuthor)) {
-            console.log(`Avaliando ${authorActions.length} ações do Trello do quadro ${config.name} (usuário ${author})...`);
-            const evaluation = await aiService.evaluateTrelloActivities(author, authorActions);
-            trelloEvaluations.push(evaluation);
-          }
+          const trelloEvaluations: TrelloEvaluation[] = await Promise.all(
+            Object.entries(activitiesByAuthor).map(([author, authorActions]) => {
+              console.log(`Avaliando ${authorActions.length} ações do Trello do quadro ${config.name} (usuário ${author})...`);
+              return aiService.evaluateTrelloActivities(author, authorActions);
+            })
+          );
           
           console.log(`Enviando relatório do Trello para o quadro ${config.name}...`);
           const customRecipients = config.recipients ? config.recipients.split(',').map((e: string) => e.trim()) : [];

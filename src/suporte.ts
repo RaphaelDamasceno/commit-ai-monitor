@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ override: true });
+dotenv.config();
 import { BitrixService } from './bitrix';
 import { AIService } from './ai';
 import { EmailService } from './email';

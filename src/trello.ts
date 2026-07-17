@@ -52,7 +52,7 @@ export class TrelloService {
         throw new Error(`Erro na API do Trello: ${response.status} ${response.statusText}`);
       }
 
-      const actions: any[] = await response.json();
+      const actions: any[] = await response.json() as any[];
       
       const parsedActions: TrelloActionData[] = [];
 
@@ -118,7 +118,7 @@ export class TrelloService {
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
       
-      const lists = await response.json();
+      const lists = await response.json() as any[];
       return lists.map((l: any) => ({ id: l.id, name: l.name }));
     } catch (error) {
       console.error('Error in getBoardLists:', error);
@@ -143,7 +143,7 @@ export class TrelloService {
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
       
-      const cards = await response.json();
+      const cards = await response.json() as any[];
       
       const cutoffDate = subDays(new Date(), daysStale);
       
@@ -191,9 +191,7 @@ export class TrelloService {
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error(`Erro na API do Trello: ${response.statusText}`);
       
-      const cards = await response.json();
-      
-      // Filtra cartões que tiveram atividade nos últimos 7 dias
+      const cards = await response.json() as any[];
       const cutoffDate = subDays(new Date(), 7);
       
       const weeklyCards = cards.filter((card: any) => {
