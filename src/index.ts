@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import { GitHubService, CommitData } from './github';
+import { GitHubService, CommitData, getAnalysisDateRange } from './github';
 import { TrelloService, TrelloActionData } from './trello';
 import { AIService, UserEvaluation, TrelloEvaluation } from './ai';
 import { EmailService } from './email';
 
 async function main() {
-  console.log('Iniciando avaliação diária de commits...');
+  console.log('Iniciando avaliação de commits...');
 
   // Validação de variáveis de ambiente
   if (!process.env.GITHUB_TOKEN_APP) console.warn('Aviso: GITHUB_TOKEN_APP não definido. Ignorando GitHub.');
@@ -16,6 +16,11 @@ async function main() {
   const githubService = new GitHubService(process.env.GITHUB_TOKEN_APP || '');
   const aiService = new AIService(process.env.GEMINI_API_KEY);
   const emailService = new EmailService();
+
+  // Calcula o intervalo de datas uma única vez (diário ou semanal na segunda-feira)
+  const dateRange = getAnalysisDateRange();
+  const periodLabel = dateRange.isWeekly ? 'Semanal' : 'Diário';
+  console.log(`Modo: Resumo ${periodLabel} (de ${dateRange.since.toLocaleDateString('pt-BR')} até ${dateRange.until.toLocaleDateString('pt-BR')})`);
   
   const defaultRecipients = process.env.DEFAULT_RECIPIENTS 
     ? process.env.DEFAULT_RECIPIENTS.split(',').map(e => e.trim()) 
@@ -24,8 +29,8 @@ async function main() {
   // 1. GITHUB FLOW
   if (process.env.GITHUB_TOKEN_APP) {
     try {
-      console.log('Buscando commits das últimas 24h...');
-      const commits = await githubService.getRecentCommits();
+      console.log(`Buscando commits (${periodLabel})...`);
+      const commits = await githubService.getRecentCommits(undefined, dateRange);
 
       if (commits.length > 0) {
         const commitsByAuthor = commits.reduce((acc, commit) => {
@@ -43,9 +48,9 @@ async function main() {
 
         console.log('Enviando relatório do GitHub por e-mail...');
         const githubRecipients = [...defaultRecipients];
-        await emailService.sendGitHubReport(githubEvaluations, 'Resumo Diário | Depto. de Desenvolvimento', githubRecipients);
+        await emailService.sendGitHubReport(githubEvaluations, `Resumo ${periodLabel} | Depto. de Desenvolvimento`, githubRecipients);
       } else {
-        console.log('Nenhum commit encontrado nas últimas 24h.');
+        console.log(`Nenhum commit encontrado no período analisado.`);
       }
     } catch (err) {
       console.error('Erro no fluxo do GitHub:', err);
@@ -66,8 +71,8 @@ async function main() {
         if (!config.key || !config.token || !config.boardId || !config.name) continue;
         
         const trelloService = new TrelloService(config.key, config.token, config.boardId, config.name);
-        console.log(`Buscando atividades do Trello no quadro ${config.name} nas últimas 24h...`);
-        const activities = await trelloService.getRecentActivities();
+        console.log(`Buscando atividades do Trello no quadro ${config.name} (${periodLabel})...`);
+        const activities = await trelloService.getRecentActivities(dateRange);
 
         if (activities.length > 0) {
           const activitiesByAuthor = activities.reduce((acc, action) => {
@@ -86,11 +91,13 @@ async function main() {
           console.log(`Enviando relatório do Trello para o quadro ${config.name}...`);
           const customRecipients = config.recipients ? config.recipients.split(',').map((e: string) => e.trim()) : [];
           const allRecipients = Array.from(new Set([...defaultRecipients, ...customRecipients]));
-          const title = config.emailTitle || `Resumo Diário | ${config.name}`;
+          const title = config.emailTitle
+            ? config.emailTitle.replace('Diário', periodLabel).replace('Diario', periodLabel)
+            : `Resumo ${periodLabel} | ${config.name}`;
           
           await emailService.sendTrelloReport(trelloEvaluations, title, allRecipients);
         } else {
-          console.log(`Nenhuma atividade no Trello (quadro ${config.name}) encontrada nas últimas 24h.`);
+          console.log(`Nenhuma atividade no Trello (quadro ${config.name}) encontrada no período analisado.`);
         }
       }
     } catch (err) {

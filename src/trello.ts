@@ -1,4 +1,5 @@
 import { subDays, isAfter } from 'date-fns';
+import { DateRange, getAnalysisDateRange } from './github';
 
 export interface TrelloActionData {
   author: string;
@@ -22,15 +23,11 @@ export class TrelloService {
     this.boardName = boardName;
   }
 
-  async getRecentActivities(): Promise<TrelloActionData[]> {
-    // Calcula o dia anterior (00:00:00 até 23:59:59)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
+  async getRecentActivities(dateRange?: DateRange): Promise<TrelloActionData[]> {
+    const range = dateRange ?? getAnalysisDateRange();
+    const yesterday = range.since;
+    const yesterdayEnd = range.until;
     const since = yesterday.toISOString();
-
-    const yesterdayEnd = new Date(yesterday);
-    yesterdayEnd.setHours(23, 59, 59, 999);
     const before = yesterdayEnd.toISOString();
 
     console.log(`Buscando eventos no Trello de ${since} até ${before}...`);

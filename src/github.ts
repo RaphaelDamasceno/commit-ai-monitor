@@ -8,6 +8,45 @@ const MAX_TOTAL_DIFF_CHARS_PER_COMMIT = 8000;
 const SKIP_DIFF_FILENAMES = new Set(['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock', 'Gemfile.lock', 'poetry.lock']);
 const SKIP_DIFF_EXTENSIONS = ['.min.js', '.min.css', '.map', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.pdf', '.zip'];
 
+export interface DateRange {
+  since: Date;
+  until: Date;
+  isWeekly: boolean;
+}
+
+/**
+ * Calcula o intervalo de datas para análise.
+ * Na segunda-feira, cobre toda a semana anterior (segunda a domingo).
+ * Nos outros dias, cobre apenas o dia anterior.
+ */
+export function getAnalysisDateRange(): DateRange {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = domingo, 1 = segunda, ...
+
+  if (dayOfWeek === 1) {
+    // Segunda-feira: analisar da segunda-feira passada até ontem (domingo)
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - 7);
+    lastMonday.setHours(0, 0, 0, 0);
+
+    const lastSunday = new Date(now);
+    lastSunday.setDate(now.getDate() - 1);
+    lastSunday.setHours(23, 59, 59, 999);
+
+    return { since: lastMonday, until: lastSunday, isWeekly: true };
+  } else {
+    // Outros dias: analisar apenas o dia anterior
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+
+    const yesterdayEnd = new Date(yesterday);
+    yesterdayEnd.setHours(23, 59, 59, 999);
+
+    return { since: yesterday, until: yesterdayEnd, isWeekly: false };
+  }
+}
+
 export interface CommitData {
   repository: string;
   author: string;
@@ -23,18 +62,14 @@ export class GitHubService {
     this.octokit = new Octokit({ auth: token });
   }
 
-  async getRecentCommits(orgName?: string): Promise<CommitData[]> {
+  async getRecentCommits(orgName?: string, dateRange?: DateRange): Promise<CommitData[]> {
     const commitsMap = new Map<string, CommitData>();
-    
-    // Calcula o dia anterior (00:00:00 até 23:59:59)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
-    const since = yesterday.toISOString();
 
-    const yesterdayEnd = new Date(yesterday);
-    yesterdayEnd.setHours(23, 59, 59, 999);
-    const until = yesterdayEnd.toISOString();
+    const range = dateRange ?? getAnalysisDateRange();
+    const since = range.since.toISOString();
+    const until = range.until.toISOString();
+    const yesterday = range.since;
+    const yesterdayEnd = range.until;
 
     console.log(`Buscando eventos de ${since} até ${until}...`);
 
